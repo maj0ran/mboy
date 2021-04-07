@@ -6,19 +6,21 @@ namespace mboy {
 
 class Memory {
 public:
-	Memory() = default;
+	Memory();
 	~Memory() = default;
 
-	template<u16 addr>
-	u8 read() { return mem[addr]; };
+	u8 read(u16 addr) const;
+	void write(u16 addr, u8 val);
 
-	template<u16 addr>
-	void write(u8 val) { mem[addr] = val; }
+	u8 &operator[](u16 addr);
+
 
 private:
 	u8 mem[64 kB];
+};
 
-}; /* namespace */
+
+} /* namespace */
 
 
 
