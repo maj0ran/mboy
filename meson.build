@@ -15,6 +15,7 @@ add_global_arguments('-Wno-pedantic',
 
 src = ['src/main.cpp',
        'src/cpu.cpp',
+	   'src/cpu_opcode_init.cpp',
        'src/memory.cpp',
       ]
 
