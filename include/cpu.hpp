@@ -2,16 +2,30 @@
 
 #include <common.hpp>
 #include <memory.hpp>
-
+#include <string>
 #include <map>
 
-namespace mboy {
-
+namespace mboy
+{
 class CPU {
-public:
+	typedef void (CPU::*operation)();
+
+	class Instruction {
+	    public:
+		Instruction();
+		Instruction(std::string name, u16 opcode, operation func);
+		~Instruction() = default;
+
+		std::string name_;
+		u16 opcode_;
+		operation func_;
+	};
+
+    public:
 	CPU();
 	~CPU() = default;
 
+	u16 exec();
 	Memory *mem;
 
 	void init_opcodes();
@@ -47,9 +61,10 @@ public:
 			union { // F is the Flags-Register; give single bits their flag-name via union
 				u8 F;
 				struct {
-				private:
+				    private:
 					[[maybe_unused]] u8 reserved : 4;
-				public:
+
+				    public:
 					bool c : 1;
 					bool h : 1;
 					bool n : 1;
@@ -62,57 +77,51 @@ public:
 		u16 AF;
 	};
 
-union { // BC - Registerpair
-	struct {
-		u8 C;
-		u8 B;
+	union { // BC - Registerpair
+		struct {
+			u8 C;
+			u8 B;
 		};
-	u16 BC;
-};
-
-union { // DE - Registerpair
-	struct {
-		u8 E;
-		u8 D;
+		u16 BC;
 	};
-	u16 DE;
-};
 
-union { // HL - Registerpair
-	struct {
-		u8 L;
-		u8 H;
+	union { // DE - Registerpair
+		struct {
+			u8 E;
+			u8 D;
+		};
+		u16 DE;
 	};
-	u16 HL;
-};
 
-u16 SP; // stack pointer
-u16 PC; // program counter
+	union { // HL - Registerpair
+		struct {
+			u8 L;
+			u8 H;
+		};
+		u16 HL;
+	};
 
-// using instruction = void (CPU::*)();
-typedef void (CPU::*instruction)();
-std::map<u8, instruction> opcodes;
-std::map<u8, instruction> ext_opcodes;
+	u16 PC; // program counter
+	u16 SP; // stack pointer
 
+	// using instruction = void (CPU::*)();
+	std::map<u16, Instruction> opcode;
 
-/********************************************************************************
+	/** CPU Instructions **/
+
+	/********************************************************************************
  *                                                                              *
  * CPU Instructions are listened in Section 3.3 / Page 65 of the GBC CPU manual *
  *                                                                              *
  ********************************************************************************/
 
-	// opcode 0xCB is not directly mentionend in the manual, however it is the extension prefix-opcode,
-	// meaning that it is followed by another opcode-byte.
-	void cb(); // 0xCB
-
-		// LD R,n
+	// LD R,n
 	void ld_b_n(); // 0x06
 	void ld_c_n(); // 0x0E
 	void ld_d_n(); // 0x16
 	void ld_e_n(); // 0x1E
 	void ld_h_n(); // 0x26
 	void ld_l_n(); // 0x2E
-
 
 	// LD R,R
 	void ld_a_a(); // 0x7F
@@ -172,7 +181,7 @@ std::map<u8, instruction> ext_opcodes;
 	void ld_l_h(); // 0x6C
 	void ld_l_l(); // 0x6D
 
-	// LD R,(RR)ß
+	// LD R,(RR)
 	void ld_a_hl(); // 0x7E
 	void ld_b_hl(); // 0x46
 	void ld_c_hl(); // 0x4E
@@ -192,36 +201,35 @@ std::map<u8, instruction> ext_opcodes;
 	void ld_hl_n(); // 0x36
 
 	// LD R,(RR)
-	void ld_a_bc();		  // 0x0A
-	void ld_a_de();		  // 0x1A
+	void ld_a_bc(); // 0x0A
+	void ld_a_de(); // 0x1A
 	void ld_a_nn(); // 0xFA
-	void ld_a_n() ; // 0x3E
+	void ld_a_n(); // 0x3E
 
-	void ld_bc_a();		   // 0x02
-	void ld_de_a();		   // 0x12
-	void ld_nn_a();  // 0xEA
-	void ldh_c_a();   // 0xE2
+	void ld_bc_a(); // 0x02
+	void ld_de_a(); // 0x12
+	void ld_nn_a(); // 0xEA
+	void ldh_c_a(); // 0xE2
 	void ldh_a_c(); // 0xF2
 
-	void ld_a_hld();	 // 0x3A
+	void ld_a_hld(); // 0x3A
 	void ld_hld_a(); // 0x32
-	void ld_a_hli();	  // 0x2A
+	void ld_a_hli(); // 0x2A
 	void ld_hli_a(); // 0x22
 
 	void ldh_n_a(); // 0xE0
-	void ldh_a_n();	 // 0xF0
+	void ldh_a_n(); // 0xF0
 
 	/**************************************
 	 * Section 3.3.2, p. 76: 16-Bit Loads *
 	 **************************************/
 
 	// LD RR,nn
-	void ld_bc_nn() ; // 0x01
-	void ld_de_nn() ; // 0x11
-	void ld_hl_nn() ; // 0x21
-	void ld_sp_nn() ; // 0x31
+	void ld_bc_nn(); // 0x01
+	void ld_de_nn(); // 0x11
+	void ld_hl_nn(); // 0x21
+	void ld_sp_nn(); // 0x31
 	void ld_sp_hl(); // 0xF9
-
 
 	/** Surprisingly, this one Load-Command affects the flag register
 		while all other load-command don't care for the flags **/
@@ -266,94 +274,93 @@ std::map<u8, instruction> ext_opcodes;
 	void adc_a_n(); // 0xCE
 
 	// SUB A, n
-	void sub_a_a() ; // 0x97
-	void sub_a_b() ; // 0x90
-	void sub_a_c() ; // 0x91
-	void sub_a_d() ; // 0x92
-	void sub_a_e() ; // 0x93
-	void sub_a_h() ; // 0x94
-	void sub_a_l() ; // 0x95
+	void sub_a_a(); // 0x97
+	void sub_a_b(); // 0x90
+	void sub_a_c(); // 0x91
+	void sub_a_d(); // 0x92
+	void sub_a_e(); // 0x93
+	void sub_a_h(); // 0x94
+	void sub_a_l(); // 0x95
 	void sub_a_hl_ref(); // 0x96
-	void sub_a_n() ; // 0xD6
+	void sub_a_n(); // 0xD6
 
 	// SBC A, n
-	void sbc_a_a() ; // 0x9F
-	void sbc_a_b() ; // 0x98
-	void sbc_a_c() ; // 0x99
-	void sbc_a_d() ; // 0x9A
-	void sbc_a_e() ; // 0x9B
-	void sbc_a_h() ; // 0x9C
-	void sbc_a_l() ; // 0x9D
+	void sbc_a_a(); // 0x9F
+	void sbc_a_b(); // 0x98
+	void sbc_a_c(); // 0x99
+	void sbc_a_d(); // 0x9A
+	void sbc_a_e(); // 0x9B
+	void sbc_a_h(); // 0x9C
+	void sbc_a_l(); // 0x9D
 	void sbc_a_hl_ref(); // 0x9E
-	void sbc_a_n() ; // 0xDE
+	void sbc_a_n(); // 0xDE
 
 	// AND A, n
-	void and_a_a() ; // 0xA7
-	void and_a_b() ; // 0xA0
-	void and_a_c() ; // 0xA1
-	void and_a_d() ; // 0xA2
-	void and_a_e() ; // 0xA3
-	void and_a_h() ; // 0xA4
-	void and_a_l() ; // 0xA5
+	void and_a_a(); // 0xA7
+	void and_a_b(); // 0xA0
+	void and_a_c(); // 0xA1
+	void and_a_d(); // 0xA2
+	void and_a_e(); // 0xA3
+	void and_a_h(); // 0xA4
+	void and_a_l(); // 0xA5
 	void and_a_hl_ref(); // 0xA6
-	void and_a_n() ; // 0xE6
+	void and_a_n(); // 0xE6
 
 	// OR A, n
-	void or_a_a() ; // 0xB7
-	void or_a_b() ; // 0xB0
-	void or_a_c() ; // 0xB1
-	void or_a_d() ; // 0xB2
-	void or_a_e() ; // 0xB3
-	void or_a_h() ; // 0xB4
-	void or_a_l() ; // 0xB5
+	void or_a_a(); // 0xB7
+	void or_a_b(); // 0xB0
+	void or_a_c(); // 0xB1
+	void or_a_d(); // 0xB2
+	void or_a_e(); // 0xB3
+	void or_a_h(); // 0xB4
+	void or_a_l(); // 0xB5
 	void or_a_hl_ref(); // 0xB6
-	void or_a_n() ; // 0xF6
+	void or_a_n(); // 0xF6
 
 	// XOR A, n
-	void xor_a_a() ; // 0xAF
-	void xor_a_b() ; // 0xA8
-	void xor_a_c() ; // 0xA9
-	void xor_a_d() ; // 0xAA
-	void xor_a_e() ; // 0xAB
-	void xor_a_h() ; // 0xAC
-	void xor_a_l() ; // 0xAD
+	void xor_a_a(); // 0xAF
+	void xor_a_b(); // 0xA8
+	void xor_a_c(); // 0xA9
+	void xor_a_d(); // 0xAA
+	void xor_a_e(); // 0xAB
+	void xor_a_h(); // 0xAC
+	void xor_a_l(); // 0xAD
 	void xor_a_hl_ref(); // 0xAE
-	void xor_a_n() ; // 0xEE
+	void xor_a_n(); // 0xEE
 
 	// CP A,n
 	/* Description of CP command on p. 87:
 	 * "This is basically an A - n  subtraction instruction but the results are thrown  away."
 	 */
-	void cp_a_a() ; // 0xBF
-	void cp_a_b() ; // 0xB8
-	void cp_a_c() ; // 0xB9
-	void cp_a_d() ; // 0xBA
-	void cp_a_e() ; // 0xBB
-	void cp_a_h() ; // 0xBC
-	void cp_a_l() ; // 0xBD
+	void cp_a_a(); // 0xBF
+	void cp_a_b(); // 0xB8
+	void cp_a_c(); // 0xB9
+	void cp_a_d(); // 0xBA
+	void cp_a_e(); // 0xBB
+	void cp_a_h(); // 0xBC
+	void cp_a_l(); // 0xBD
 	void cp_a_hl_ref(); // 0xBE
-	void cp_a_n() ; // 0xFE
+	void cp_a_n(); // 0xFE
 
 	// INC R
-	void inc_a() ; // 0x3C
-	void inc_b() ; // 0x04
-	void inc_c() ; // 0x0C
-	void inc_d() ; // 0x14
-	void inc_e() ; // 0x1C
-	void inc_h() ; // 0x24
-	void inc_l() ; // 0x2C
+	void inc_a(); // 0x3C
+	void inc_b(); // 0x04
+	void inc_c(); // 0x0C
+	void inc_d(); // 0x14
+	void inc_e(); // 0x1C
+	void inc_h(); // 0x24
+	void inc_l(); // 0x2C
 	void inc_hl_ref(); // 0x34
 
 	// DEC R
-	void dec_a() ; // 0x3D
-	void dec_b() ; // 0x05
-	void dec_c() ; // 0x0D
-	void dec_d() ; // 0x15
-	void dec_e() ; // 0x1D
-	void dec_h() ; // 0x25
-	void dec_l() ; // 0x2D
+	void dec_a(); // 0x3D
+	void dec_b(); // 0x05
+	void dec_c(); // 0x0D
+	void dec_d(); // 0x15
+	void dec_e(); // 0x1D
+	void dec_h(); // 0x25
+	void dec_l(); // 0x2D
 	void dec_hl_ref(); // 0x35
-
 
 	/************************************
 	 * Section 3.3.4, p. 90: 16-Bit ALU *
@@ -392,11 +399,7 @@ std::map<u8, instruction> ext_opcodes;
 	void swap_l(); // 0xCB 35
 	void swap_hl_ref(); // 0xCB 36
 
-
-
-	void daa();
-
-
+	void daa(); // 0x27
 	void cpl(); // 0x2F
 	void ccf(); // 0x3F
 	void scf(); // 0x37
@@ -708,7 +711,6 @@ std::map<u8, instruction> ext_opcodes;
 	void set_l_7(); // 0xCB FD
 	void set_hl_ref_7(); // 0xCB FE
 
-
 	/********************************
 	 * Section 3.3.8, p. 108: Jumps *
 	 ********************************/
@@ -717,19 +719,17 @@ std::map<u8, instruction> ext_opcodes;
 
 	// JP cc,nn
 	void jp_nz_nn(); // 0xC2
-	void jp_z_nn();   // 0xCA
+	void jp_z_nn(); // 0xCA
 	void jp_nc_nn(); // 0xD2
-	void jp_c_nn();   // 0xDA
-
+	void jp_c_nn(); // 0xDA
 	void jp_hl(); // 0xE9
-
-	void jr_n(); // 0x18 // TODO: PC gets incremented here because of reading. Maybe decrement is needed
+	void jr_n(); // 0x18
 
 	// JR CC,n
 	void jr_nz_n(); // 0x20
-	void jr_z_n();   // 0x28
+	void jr_z_n(); // 0x28
 	void jr_nc_n(); // 0x30
-	void jr_c_n();   // 0x38
+	void jr_c_n(); // 0x38
 
 	/********************************
 	 * Section 3.3.9, p. 108: Calls *
@@ -739,9 +739,9 @@ std::map<u8, instruction> ext_opcodes;
 
 	// CALL cc,nn
 	void call_nz_nn(); // 0xC4
-	void call_z_nn();   // 0xCC
+	void call_z_nn(); // 0xCC
 	void call_nc_nn(); // 0xD4
-	void call_c_nn();   // 0xDC
+	void call_c_nn(); // 0xDC
 
 	/************************************
 	 * Section 3.3.10, p. 108: Restarts *
@@ -762,15 +762,13 @@ std::map<u8, instruction> ext_opcodes;
 	 ************************************/
 
 	void ret(); // 0xC9
-
 	void ret_nz(); // 0xC0
-	void ret_z();   // 0xC8
+	void ret_z(); // 0xC8
 	void ret_nc(); // 0xD0
-	void ret_c();   // 0xD8
-
+	void ret_c(); // 0xD8
 	void reti(); // 0xD9
 
-private:
+    private:
 	bool stop_ = false;
 	bool halt_ = false;
 	bool interruptable_ = false;
@@ -779,274 +777,60 @@ private:
 	 * Helper Functions for Read/Write Instructions *
 	 ************************************************/
 
-	// Read Program Counter, 8-bit
-	[[nodiscard]] inline u8 read_pc() {
-		u8 val =  mem->read(PC);
-	//	printf(" %x", val);
-		PC++;
-		return val;
-	}
+	[[nodiscard]] inline u8 read_pc();
+	[[nodiscard]] inline u16 read16_pc();
+	[[nodiscard]] inline u8 read(u16 addr);
 
-	// Read Program Ccounter, 16-bit
-	[[nodiscard]] inline u16 read16_pc() {
-		u16 val = read_pc();
-		val |= read_pc() << 8;
-		return val;
-	}
+	[[nodiscard]] inline u8 pop();
+	[[nodiscard]] inline u16 pop16();
 
-	// Read Stack, 8-bit
-	[[nodiscard]] inline u8 pop() {
-		SP++;
-		return mem->read(SP);
-	}
+	inline void write(u16 addr, u8 val);
+	inline void write16(u16 addr, u16 val);
 
-	// Read Stack, 16-bit
-	[[nodiscard]] inline u16 pop16() {
-		u16 val = pop() << 8;
-		val |= pop();
-		return val;
-	}
-
-	// Write Stack, 8-bit
-	inline void push(u8 val) {
-		mem->write(SP, val);
-		SP--;
-	}
-
-	// Write Stack, 16-bit
-	inline void push16(u16 val) {
-		push(val & 0xFF);
-		push(val >> 8);
-	}
-
-	// Read from arbitrary address, 8-bit
-	inline u8 read(u16 addr) {
-		return mem->read(addr);
-	}
-
-	// Write to arbitrary address, 8-bit
-	inline void write(u16 addr, u8 val) {
-		mem->write(addr, val);
-	}
-
-	// Write to arbitrary address, 16-bit
-	inline void write16(u16 addr, u16 val) {
-		mem->write(addr, val & 0xFF);
-		mem->write(addr + 1, val >> 8);
-
-	}
-
+	inline void push(u8 val);
+	inline void push16(u16 val);
 
 	/************************************************
 	 * Helper Functions for Arithmetic Instructions *
 	 ************************************************/
 
-	[[nodiscard]] inline u8 add8bit(u8 op1, u8 op2) {
-		u16 result = op1 + op2;
-		flags.c = 0x100 == ((op1 ^ op2 ^ result) & 0x100);
-		flags.h = 0x10 == ((op1 ^ op2 ^ result) & 0x10);
-		flags.z = result == 0;
-		flags.n = false;
-		return (u8)(result & 0xFF);
+	[[nodiscard]] inline u8 add8bit(u8 op1, u8 op2);
+	[[nodiscard]] inline u8 adc8bit(u8 op1, u8 op2);
+	[[nodiscard]] inline u16 add16bit(u16 op1, u16 op2);
+	[[nodiscard]] inline u8 sub8bit(u8 op1, u8 op2);
+	[[nodiscard]] inline u8 sbc8bit(u8 op1, u8 op2);
+	[[nodiscard]] inline u8 and8bit(u8 op1, u8 op2);
+	[[nodiscard]] inline u8 or8bit(u8 op1, u8 op2);
+	[[nodiscard]] inline u8 xor8bit(u8 op1, u8 op2);
 
-	}
-
-	[[nodiscard]] inline u8 adc8bit(u8 op1, u8 op2) {
-		u16 result = op1 + op2 + flags.c;
-		flags.c = 0x100 == ((op1 ^ op2 ^ result) & 0x100);
-		flags.h = 0x10 == ((op1 ^ op2 ^ result) & 0x10);
-		flags.z = result == 0;
-		flags.n = false;
-		return (u8)(result & 0xFF);
-	}
-
-	[[nodiscard]] inline u16 add16bit(u16 op1, u16 op2) {
-		u32 result = op1 + op2;
-		flags.n = false;
-		flags.c = 0x1'00'00 == ((op1 ^ op2 ^ result) & 0x1'00'00);
-		flags.h = 0x10'00 == ((op1 ^ op2 ^ result) & 0x10'00);
-		return (u16)result;
-
-	}
-
-	[[nodiscard]] inline u8 sub8bit(u8 op1, u8 op2) {
-		flags.c = op1 < op2;
-		flags.h = (op1 & 0x0F) < (op2 & 0x0F);
-		flags.z = op1 == op2;
-		flags.n = true;
-		return (u8)(op1 - op2);
-	}
-
-	[[nodiscard]] inline u8 sbc8bit(u8 op1, u8 op2) {
-		op2 = op2 + flags.c;
-		flags.c = op1 < op2;
-		flags.h = (op1 & 0x0F) < (op2 & 0x0F);
-		flags.z = op1 == op2;
-		flags.n = true;
-		return (u8)(op1 - op2);
-	}
-
-	[[nodiscard]] inline u8 and8bit(u8 op1, u8 op2) {
-		u8 result = op1 & op2;
-		flags.z = result == 0;
-		flags.n = false;
-		flags.h = true;
-		flags.c = false;
-		return result;
-	};
-
-	[[nodiscard]] inline u8 or8bit(u8 op1, u8 op2) {
-		u8 result = op1 | op2;
-		flags.z = result == 0;
-		flags.n = false;
-		flags.h = false;
-		flags.c = false;
-		return result;
-	}
-
-	[[nodiscard]] inline u8 xor8bit(u8 op1, u8 op2) {
-		u8 result = op1 ^ op2;
-		flags.z = op1 == 0;
-		flags.n = false;
-		flags.h = false;
-		flags.c = false;
-		return result;
-	}
-
-	inline void inc(u8* addr) {
-		flags.n = false;
-		flags.h = 0x0F == (*addr & 0x0F);
-		(*addr)++;
-		flags.z = 0 == *addr;
-	}
-
-	inline void dec(u8* addr) {
-		(*addr)--;
-		flags.z = 0 == *addr;
-		flags.n = true;
-		flags.h = (*addr & 0x0F) == 0x0F;
-	}
+	inline void inc(u8 *addr);
+	inline void dec(u8 *addr);
 
 	/***************************************************
 	 * Helper Functions for Miscellaneous Instructions *
 	 ***************************************************/
 
-	[[nodiscard]] inline u8 swap(u8 val) {
-		flags.z = val == 0;
-		flags.n = false;
-		flags.h = false;
-		flags.c = false;
-
-		u8 tmp = val & 0x0F;
-		val = val >> 4;
-		val = val | (tmp << 4);
-
-		return val;
-	}
+	[[nodiscard]] inline u8 swap(u8 val);
 
 	/****************************************************
 	 * Helper Functions for Rotate & Shift Instructions *
 	 ****************************************************/
 
-	[[nodiscard]] inline u8 rlc(u8 val) {
-		flags.c = (val & 0x80);
-		val <<= 1;
-		val |= flags.c;
-
-		flags.z = val == 0;
-		flags.n = false;
-		flags.h = false;
-
-		return val;
-	}
-
-	[[nodiscard]] inline u8 rl(u8 val) {
-		bool carry = (val & 0x80);
-		val <<= 1;
-		val |= flags.c;
-
-		flags.c = carry;
-		flags.z = val == 0;
-		flags.n = false;
-		flags.h = false;
-
-		return val;
-	}
-
-	[[nodiscard]] inline u8 rrc(u8 val) {
-		flags.c = val & 0x01;
-		val >>= 1;
-		val |= (flags.c << 7);
-
-		flags.z = val == 0;
-		flags.n = false;
-		flags.h = false;
-
-		return val;
-	}
-
-	[[nodiscard]] u8 rr(u8 val) { // 0x1F
-		bool carry = (val & 0x01);
-		val >>= 1;
-		val |= (flags.c << 7);
-
-		flags.c = carry;
-		flags.z = val == 0;
-		flags.n = false;
-		flags.h = false;
-
-		return val;
-	}
-
-	[[nodiscard]] u8 sla(u8 val) {
-		flags.c = (val & 0x80);
-		val <<= 1;
-		flags.z = val == 0;
-		flags.n = false;
-		flags.h = false;
-
-		return val;
-	}
-
-	[[nodiscard]] u8 sra(u8 val) {
-		u8 msb = val & 0x80;
-		flags.c = (val & 0x01);
-		val >>= 1;
-		val |= msb;
-		flags.z = val == 0;
-		flags.n = false;
-		flags.h = false;
-
-		return val;
-	}
-
-	[[nodiscard]] u8 srl(u8 val) {
-		flags.c = val & 0x01;
-		val >>= 1;
-		flags.z = val == 0;
-		flags.n = false;
-		flags.h = false;
-
-		return val;
-	}
+	[[nodiscard]] inline u8 rlc(u8 val);
+	[[nodiscard]] inline u8 rl(u8 val);
+	[[nodiscard]] inline u8 rrc(u8 val);
+	[[nodiscard]] inline u8 rr(u8 val);
+	[[nodiscard]] inline u8 sla(u8 val);
+	[[nodiscard]] inline u8 sra(u8 val);
+	[[nodiscard]] inline u8 srl(u8 val);
 
 	/*****************************************
 	 * Helper Functions for Bit Instructions *
 	 *****************************************/
 
-	void bit(u8 bit, u8 reg) {
-		flags.z = !(reg & (0x01 << bit));
-		flags.n = false;
-		flags.h = true;
-	}
-
-	[[nodiscard]] u8 set(u8 bit, u8 reg) {
-		return reg | (0x01 << bit);
-	}
-
-	[[nodiscard]] u8 res(u8 bit, u8 reg) {
-		return reg & ~(0x01 << bit);
-	}
+	void inline bit(u8 bit, u8 reg);
+	[[nodiscard]] inline u8 set(u8 bit, u8 reg);
+	[[nodiscard]] inline u8 res(u8 bit, u8 reg);
 };
 
-} /* namespace */
+} // namespace mboy
