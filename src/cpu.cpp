@@ -13,8 +13,8 @@ CPU::CPU() : PC(0x0), SP(0)
 CPU::Instruction::Instruction()
 {
 }
-CPU::Instruction::Instruction(std::string name, u16 opcode, operation func)
-	: name_(name), opcode_(opcode), func_(func)
+CPU::Instruction::Instruction(std::string name, u16 opcode, operation func, size_t num_args)
+	: name_(name), opcode_(opcode), func_(func), num_args_(num_args)
 {
 }
 /* Execute next Instruction
@@ -621,7 +621,7 @@ void CPU::ld_l_l()
 	L = L;
 } // 0x6D
 
-// LD R,(RR)ß
+// LD R,(RR)
 void CPU::ld_a_hl()
 {
 	A = read(HL);

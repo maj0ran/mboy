@@ -13,12 +13,13 @@ class CPU {
 	class Instruction {
 	    public:
 		Instruction();
-		Instruction(std::string name, u16 opcode, operation func);
+		Instruction(std::string name, u16 opcode, operation func, size_t num_args);
 		~Instruction() = default;
 
 		std::string name_;
 		u16 opcode_;
 		operation func_;
+		size_t num_args_;
 	};
 
     public:
