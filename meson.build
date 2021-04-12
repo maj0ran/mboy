@@ -13,9 +13,12 @@ C = 'clang'
 add_global_arguments('-Wno-pedantic',
 		     language : 'cpp')
 
+ncurses_dep = dependency('curses')
+
 src = ['src/main.cpp',
        'src/cpu.cpp',
 	   'src/cpu_opcode_init.cpp',
+	   'src/debugger.cpp',
        'src/memory.cpp',
       ]
 
@@ -24,5 +27,6 @@ incdir = include_directories('include')
 executable('myboy',
 	   sources: src,
 	   include_directories : incdir,
+	   dependencies : ncurses_dep,
 	   )
 
